@@ -8,7 +8,6 @@ import me.athlaeos.enchantssquared.enchantments.CustomEnchant;
 import me.athlaeos.enchantssquared.enchantments.regular_interval.TriggerOnRegularIntervalsEnchantment;
 import me.athlaeos.enchantssquared.managers.CustomEnchantManager;
 import me.athlaeos.enchantssquared.managers.RegularIntervalEnchantmentClockManager;
-import me.athlaeos.valhallatrinkets.TrinketsManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -70,25 +69,6 @@ public class EntityUtils {
                     if (!included && equipment.getOffHandEnchantments().keySet().stream().anyMatch(en -> en instanceof TriggerOnRegularIntervalsEnchantment)) included = include(e.getUniqueId());
                 }
             }
-            if (EnchantsSquared.isTrinketsHooked()){
-                if (e instanceof Player){
-                    Map<Integer, ItemStack> trinkets = TrinketsManager.getInstance().getTrinketInventory((Player) e);
-                    equipment.getMiscEquipment().addAll(trinkets.values());
-                    if (getEnchantments){
-                        for (ItemStack i : trinkets.values()){
-                            equipment.getMiscEquipmentEnchantments().put(i, CustomEnchantManager.getInstance().getItemsEnchantsFromPDC(i));
-                            if (!included && equipment.getMiscEquipmentEnchantments().get(i).keySet().stream().anyMatch(en -> en instanceof TriggerOnRegularIntervalsEnchantment)) included = include(e.getUniqueId());
-                        }
-                    }
-                }
-            }
-            if (!included) {
-                RegularIntervalEnchantmentClockManager.excludePlayerFromClock(e.getUniqueId());
-                EnchantsSquared.getPlugin().getServer().getScheduler().runTaskLater(EnchantsSquared.getPlugin(), () ->
-                        CustomEnchantManager.getInstance().getAllEnchants().values().stream()
-                                .filter(ce -> ce instanceof TriggerOnRegularIntervalsEnchantment)
-                                .forEach(ce -> ((TriggerOnRegularIntervalsEnchantment) ce).onRemove(e)), 5L);
-            } else RegularIntervalEnchantmentClockManager.includePlayerIntoClock(e.getUniqueId());
         }
         return equipment;
     }
@@ -109,16 +89,6 @@ public class EntityUtils {
                 if (equipment.getLeggingsEnchantments().keySet().stream().anyMatch(en -> en instanceof TriggerOnRegularIntervalsEnchantment)) included = include(e.getUniqueId());
                 if (getEnchantments && equipment.getBoots() != null) equipment.setBootsEnchantments(CustomEnchantManager.getInstance().getItemsEnchantsFromPDC(equipment.getBoots()));
                 if (equipment.getBootsEnchantments().keySet().stream().anyMatch(en -> en instanceof TriggerOnRegularIntervalsEnchantment)) included = include(e.getUniqueId());
-                if (EnchantsSquared.isTrinketsHooked()){
-                    if (e instanceof Player){
-                        Map<Integer, ItemStack> trinkets = TrinketsManager.getInstance().getTrinketInventory((Player) e);
-                        equipment.getMiscEquipment().addAll(trinkets.values());
-                        for (ItemStack i : trinkets.values()){
-                            if (getEnchantments) equipment.getMiscEquipmentEnchantments().put(i, CustomEnchantManager.getInstance().getItemsEnchantsFromPDC(i));
-                            if (!included && equipment.getMiscEquipmentEnchantments().get(i).keySet().stream().anyMatch(en -> en instanceof TriggerOnRegularIntervalsEnchantment)) included = include(e.getUniqueId());
-                        }
-                    }
-                }
             }
             if (getHands){
                 equipment.setMainHand(e.getEquipment().getItemInMainHand());
