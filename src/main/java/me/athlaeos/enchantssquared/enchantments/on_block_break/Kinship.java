@@ -15,6 +15,7 @@ import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.*;
 
@@ -187,11 +188,12 @@ public class Kinship extends CustomEnchant implements TriggerOnBlockBreakEnchant
         int durabilityToRepair = Utils.excessChance(getDurabilityRegeneration(pickaxe.getType(), e.getBlock().getType())
         * (fractionRegen ? pickaxe.getType().getMaxDurability() : 1));
 
-        if (pickaxe.getItemMeta() instanceof Damageable && pickaxe.getType().getMaxDurability() > 0){
+        ItemMeta pickaxeMeta = pickaxe.getItemMeta();
+        if (pickaxeMeta instanceof Damageable && pickaxe.getType().getMaxDurability() > 0){
             PlayerItemDamageEvent event = new PlayerItemDamageEvent(e.getPlayer(), pickaxe, -durabilityToRepair);
             EnchantsSquared.getPlugin().getServer().getPluginManager().callEvent(event);
             if (!event.isCancelled()){
-                Damageable toolMeta = (Damageable) pickaxe.getItemMeta();
+                Damageable toolMeta = (Damageable) pickaxeMeta;
                 toolMeta.setDamage(toolMeta.getDamage() + event.getDamage());
                 pickaxe.setItemMeta(toolMeta);
             }
