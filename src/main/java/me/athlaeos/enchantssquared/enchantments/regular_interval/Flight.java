@@ -28,6 +28,7 @@ import org.bukkit.potion.PotionEffectType;
 import java.util.*;
 
 public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEnchantment, Listener {
+    private static final int NUM_FIRE_TICKS = 120;
     private final YamlConfiguration config;
     private final Collection<String> incompatibleVanillaEnchantments;
     private final Collection<String> incompatibleCustomEnchantments;
@@ -242,6 +243,9 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
                     if (damage > 0 && ItemUtils.damageItem(p, firstFlightItem.getEquipment(), damage, firstFlightItem.getSlot())){
                         p.setAllowFlight(false);
                         p.setFlying(false);
+                        if (WorldUtils.isDay(p.getWorld())) {
+                            p.setFireTicks(NUM_FIRE_TICKS); // SC2 Change
+                        }
                         p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, slowfallDuration, 0, true, false, true));
                         return;
                     }
@@ -264,6 +268,9 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
                             cooldownManager.setCounter(p.getUniqueId(), 0, "player_in_flight");
                             p.setAllowFlight(false);
                             p.setFlying(false);
+                            if (WorldUtils.isDay(p.getWorld())) {
+                                p.setFireTicks(NUM_FIRE_TICKS); // SC2 Change
+                            }
                             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, slowfallDuration, 0, true, false, true));
                         } else {
                             cooldownManager.incrementCounter(p.getUniqueId(), -500, "player_in_flight");
