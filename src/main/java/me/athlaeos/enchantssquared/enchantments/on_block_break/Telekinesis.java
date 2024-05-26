@@ -1,5 +1,6 @@
 package me.athlaeos.enchantssquared.enchantments.on_block_break;
 
+import me.athlaeos.enchantssquared.EnchantsSquared;
 import me.athlaeos.enchantssquared.config.ConfigManager;
 import me.athlaeos.enchantssquared.domain.ExecutionPriority;
 import me.athlaeos.enchantssquared.domain.MaterialClassType;

@@ -6,10 +6,10 @@
 
     <groupId>world.sc2</groupId>
     <artifactId>enchantssquaredforsc2</artifactId>
-    <version>2.5.8</version>
+    <version>2.5.9</version>
     <packaging>jar</packaging>
 
-    <name>EnchantsSquared</name>
+    <name>EnchantsSquaredForSC2</name>
 
     <description>EnchantsSquared is a plugin written by Athlaeos adding in many new enchantments with the intent to mimic
         vanilla as closely as possible. This version is a fork created by ChillyTheEevee to add features for SC2 Development
