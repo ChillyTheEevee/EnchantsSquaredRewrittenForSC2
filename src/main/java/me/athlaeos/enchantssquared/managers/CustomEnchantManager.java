@@ -37,6 +37,8 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class CustomEnchantManager {
@@ -52,6 +54,9 @@ public class CustomEnchantManager {
     private final boolean enableCosmeticGlint;
     private final boolean isUsingRomanNumerals;
 
+    // Custom SC2
+    private final Pattern potentialEnchantmentLorePattern;
+
     public CustomEnchantManager(){
         allEnchants = HashBiMap.create();
         YamlConfiguration config = ConfigManager.getInstance().getConfig("config.yml").get();
@@ -62,6 +67,15 @@ public class CustomEnchantManager {
         this.levelMinimum = config.getInt("level_minimum");
         this.enableCosmeticGlint = config.getBoolean("enable_cosmetic_glint");
         this.isUsingRomanNumerals = config.getBoolean("level_as_roman");
+
+        // Sc2
+        String patternString;
+        if (isUsingRomanNumerals) {
+            patternString = "^([a-zA-Z]+)(?: ([IVXLCDM]+))?$"; // Regular expression for Roman Numerals
+        } else {
+            patternString = "^([a-zA-Z]+)(?: (\\d+))?$"; // Regular expression for Numeric Digits
+        }
+        this.potentialEnchantmentLorePattern = Pattern.compile(patternString);
 
         registerEnchants();
     }
@@ -545,7 +559,11 @@ public class CustomEnchantManager {
      */
     public void updateItem(ItemStack i) {
         if (i == null) return;
-        setItemEnchants(i, getItemsEnchantsFromLore(i));
+        Map<CustomEnchant, Integer> newEnchants = getItemsEnchantsFromLore(i);
+        if (newEnchants == null) {
+            return;
+        }
+        setItemEnchants(i, newEnchants);
     }
 
     /**
@@ -561,33 +579,42 @@ public class CustomEnchantManager {
     public Map<CustomEnchant, Integer> getItemsEnchantsFromLore(ItemStack enchantedItem){
         //The map is the custom enchant + its level, if the level is 0 the level is not displayed in the lore
         //and has no real max level. ex: "Flight" rather than "Flight I"
-        Map<CustomEnchant, Integer> itemEnchants = new HashMap<>();
-        if (ItemUtils.isAirOrNull(enchantedItem)) return itemEnchants;
-        if (enchantedItem.getItemMeta() == null) return itemEnchants;
-        if (!enchantedItem.getItemMeta().hasLore()) return itemEnchants;
+        HashMap<CustomEnchant, Integer> enchantments = new HashMap<>();
+        if (enchantedItem == null) return enchantments;
+        if (enchantedItem.getItemMeta() == null) return enchantments;
+        if (!enchantedItem.getItemMeta().hasLore()) return enchantments;
 
-        List<String> itemLore = enchantedItem.getItemMeta().getLore();
+        List<String> itemLoreList = enchantedItem.getItemMeta().getLore();
+        assert itemLoreList != null;
 
-        assert itemLore != null;
-        for (String l : itemLore) {
-            for (CustomEnchant e : getCompatibleEnchants(enchantedItem, GameMode.CREATIVE)){
-                if (l.matches(ChatColor.translateAlternateColorCodes('&', e.getDisplayEnchantment() + ".*"))) { // if the String contains the enchantment name w/o level
-                    Bukkit.getLogger().severe("Match found on Item material " + enchantedItem.getType() + " for enchantment " + e.getDisplayEnchantment());
-                    String[] splitLine = l.split(" ");
-                    if (splitLine.length == 1) { // Assume that the level is one
-                        itemEnchants.put(e, 1);
-                    } else if (isUsingRomanNumerals) { // The enchantment should have a roman numeral number
-                        int level = Utils.translateRomanToLevel(splitLine[splitLine.length - 1]);
-                        itemEnchants.put(e, level);
-                    } else { // The enchantment should have a number level
-                        int level = Integer.parseInt(splitLine[splitLine.length - 1]);
-                        itemEnchants.put(e, level);
+        Collection<CustomEnchant> possibleCustomEnchantments = getCompatibleEnchants(enchantedItem, GameMode.CREATIVE);
+        for (String lore : itemLoreList) {
+            Matcher matcher = potentialEnchantmentLorePattern.matcher(lore);
+            if (matcher.find()) { // Lore may represent an Enchantment.
+                String potentialEnchantmentName = matcher.group(1);
+                for (CustomEnchant enchant : possibleCustomEnchantments) {
+                    if (potentialEnchantmentName.equals(
+                            ChatColor.translateAlternateColorCodes('&', enchant.getDisplayEnchantment()))) {
+                        // This lore does in fact represent the enchantment
+                        possibleCustomEnchantments.remove(enchant);
+                        int level;
+                        if (matcher.group(2).isEmpty()) { // No numeral or digit, assume level 1.
+                            level = 1;
+                        } else {
+                            if (isUsingRomanNumerals) {
+                                level = Utils.translateRomanToLevel(matcher.group(2));
+                            } else {
+                                // This should NEVER throw an exception.
+                                level = Integer.parseInt(matcher.group(2));
+                            }
+                        }
+                        enchantments.put(enchant, level);
+                        break;
                     }
-                    break;
                 }
             }
         }
 
-        return itemEnchants;
+        return enchantments;
     }
 }
