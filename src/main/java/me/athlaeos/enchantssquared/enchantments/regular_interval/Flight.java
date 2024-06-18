@@ -222,8 +222,7 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
     public void execute(Entity e, int level) {
         if (!(e instanceof Player)) return;
         Player p = (Player) e;
-        boolean allowFlightNaturally = p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR
-                || p.hasPermission("essentials.fly");
+        boolean allowFlightNaturally = p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR;
         if (!shouldEnchantmentCancel(level, (LivingEntity) e, e.getLocation())){
             // player doesn't have the enchantment, or is not allowed in this area
 //            if (!allowFlightNaturally && (p.isFlying() || p.getAllowFlight())){
