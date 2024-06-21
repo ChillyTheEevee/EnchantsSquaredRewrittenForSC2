@@ -6,7 +6,7 @@
 
     <groupId>me.athlaeos</groupId>
     <artifactId>enchantssquaredforsc2</artifactId>
-    <version>2.5.9.1-SNAPSHOT</version>
+    <version>2.5.9.1</version>
     <packaging>jar</packaging>
 
     <name>EnchantsSquaredForSC2</name>
