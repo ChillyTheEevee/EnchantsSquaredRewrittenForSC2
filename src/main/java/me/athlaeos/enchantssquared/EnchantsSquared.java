@@ -9,9 +9,10 @@ import me.athlaeos.enchantssquared.enchantments.CosmeticGlintEnchantment;
 import me.athlaeos.enchantssquared.enchantments.CustomEnchant;
 import me.athlaeos.enchantssquared.hooks.WorldGuardHook;
 import me.athlaeos.enchantssquared.listeners.*;
+import me.athlaeos.enchantssquared.listeners.shadowcraft_listeners.NPCDropItemListener;
 import me.athlaeos.enchantssquared.listeners.shadowcraft_listeners.PlayerJoinListener;
-import me.athlaeos.enchantssquared.managers.CustomEnchantManager;
 import me.athlaeos.enchantssquared.managers.AnimationRegistry;
+import me.athlaeos.enchantssquared.managers.CustomEnchantManager;
 import me.athlaeos.enchantssquared.managers.RegularIntervalEnchantmentClockManager;
 import me.athlaeos.enchantssquared.menus.MenuListener;
 import org.bukkit.Location;
@@ -52,6 +53,7 @@ public final class EnchantsSquared extends JavaPlugin {
 
     // Shadowcraft listeners
     private PlayerJoinListener shadowcraftPlayerJoinListener = null;
+    private NPCDropItemListener npcDropItemListener = null;
 
     @Override
     public void onLoad() {
@@ -118,6 +120,10 @@ public final class EnchantsSquared extends JavaPlugin {
 
         // Register shadowcraft listeners
         shadowcraftPlayerJoinListener = registerListener(new PlayerJoinListener());
+        if (hasPlugin("CombatLogX")) {
+            getLogger().info("Recognized CombatLogX dependency. Applying Soulbound support...");
+            npcDropItemListener = registerListener(new NPCDropItemListener());
+        }
 
         AnimationRegistry.registerDefaults();
 
