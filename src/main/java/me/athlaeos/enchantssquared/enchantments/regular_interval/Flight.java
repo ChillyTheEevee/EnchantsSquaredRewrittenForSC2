@@ -216,13 +216,13 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
     }
 
     private final Set<UUID> playersGivenFlight = new HashSet<>();
+    private final Set<UUID> fallingPlayers = new HashSet<>();
 
     @Override
     public void execute(Entity e, int level) {
         if (!(e instanceof Player)) return;
         Player p = (Player) e;
-        boolean allowFlightNaturally = p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR
-                || p.hasPermission("essentials.fly");
+        boolean allowFlightNaturally = p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR;
         if (!shouldEnchantmentCancel(level, (LivingEntity) e, e.getLocation())){
             // player doesn't have the enchantment, or is not allowed in this area
 //            if (!allowFlightNaturally && (p.isFlying() || p.getAllowFlight())){
@@ -231,7 +231,7 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
 //                p.setFlying(false);
 //            }
 //        } else {
-            if (!p.getAllowFlight()){
+            if (!fallingPlayers.contains(p.getUniqueId())) {
                 playersGivenFlight.add(p.getUniqueId());
                 p.setAllowFlight(true);
             }
@@ -245,6 +245,7 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
                         p.setFlying(false);
                         if (WorldUtils.isDay(p.getWorld())) {
                             p.setFireTicks(NUM_FIRE_TICKS); // SC2 Change
+                            p.getWorld().strikeLightning(p.getLocation());
                         }
                         p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, slowfallDuration, 0, true, false, true));
                         return;
@@ -265,17 +266,24 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
                     if (p.isFlying()) {
                         flyingPlayers.add(p.getUniqueId());
                         if (currentFlight <= 0) {
+                            fallingPlayers.add(p.getUniqueId());
                             cooldownManager.setCounter(p.getUniqueId(), 0, "player_in_flight");
                             p.setAllowFlight(false);
                             p.setFlying(false);
                             if (WorldUtils.isDay(p.getWorld())) {
                                 p.setFireTicks(NUM_FIRE_TICKS); // SC2 Change
+                                p.getWorld().strikeLightning(p.getLocation());
                             }
                             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, slowfallDuration, 0, true, false, true));
                         } else {
                             cooldownManager.incrementCounter(p.getUniqueId(), -500, "player_in_flight");
                         }
                     } else if (isOnGround) {
+                        if (fallingPlayers.contains(p.getUniqueId())) {
+                            fallingPlayers.remove(p.getUniqueId());
+                            playersGivenFlight.add(p.getUniqueId());
+                            p.setAllowFlight(true);
+                        }
                         if (cooldownManager.getCounterResult(p.getUniqueId(), "player_in_flight") + flightRegeneration > maxFlightDuration) {
                             cooldownManager.setCounter(p.getUniqueId(), maxFlightDuration, "player_in_flight");
                             currentFlight = maxFlightDuration;
@@ -316,8 +324,8 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
         if (level <= 0 && playersGivenFlight.contains(p.getUniqueId())){
             // only if the player previously was allowed to fly, check if they're still allowed to fly
             playersGivenFlight.remove(p.getUniqueId());
-            p.setFlying(false);
             p.setAllowFlight(false);
+            p.setFlying(false);
         }
     }
 
@@ -333,7 +341,6 @@ public class Flight extends CustomEnchant implements TriggerOnRegularIntervalsEn
         if (playersGivenFlight.contains(p.getUniqueId())){
             // only if the player previously was allowed to fly, check if they're still allowed to fly
             playersGivenFlight.remove(p.getUniqueId());
-            p.setFlying(false);
             p.setAllowFlight(false);
         }
     }

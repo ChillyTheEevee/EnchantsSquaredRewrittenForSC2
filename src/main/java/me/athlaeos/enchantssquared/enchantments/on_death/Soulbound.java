@@ -1,30 +1,38 @@
 package me.athlaeos.enchantssquared.enchantments.on_death;
 
-import me.athlaeos.enchantssquared.EnchantsSquared;
+import com.github.sirblobman.combatlogx.api.event.NPCDropItemEvent;
+import me.athlaeos.enchantssquared.config.Config;
 import me.athlaeos.enchantssquared.config.ConfigManager;
 import me.athlaeos.enchantssquared.domain.MaterialClassType;
-import me.athlaeos.enchantssquared.enchantments.*;
+import me.athlaeos.enchantssquared.enchantments.CustomEnchant;
+import me.athlaeos.enchantssquared.enchantments.LevelService;
+import me.athlaeos.enchantssquared.enchantments.Levels1IfPresentInInventory;
+import me.athlaeos.enchantssquared.enchantments.sc2.TriggerOnNPCDropItemEnchantment;
 import me.athlaeos.enchantssquared.managers.CustomEnchantManager;
 import me.athlaeos.enchantssquared.utility.ItemSerializer;
 import me.athlaeos.enchantssquared.utility.ItemUtils;
 import me.athlaeos.enchantssquared.utility.Utils;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
-public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantment {
+public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantment, TriggerOnNPCDropItemEnchantment {
+
+    private final Config storedItemDataFile;
     private final YamlConfiguration config;
     private final Collection<String> incompatibleVanillaEnchantments;
     private final Collection<String> incompatibleCustomEnchantments;
+
     /**
      * Constructor for a Custom Enchant. The type and id must be unique and the type will automatically be uppercased
      * by convention.
@@ -37,6 +45,7 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
     public Soulbound(int id, String type) {
         super(id, type);
         this.config = ConfigManager.getInstance().getConfig("config.yml").get();
+        this.storedItemDataFile = ConfigManager.getInstance().getConfig("data/stored_soulbound_items.yml");
         this.naturallyCompatibleWith = new HashSet<>(config.getStringList("enchantment_configuration.soulbound.compatible_with"));
         this.incompatibleVanillaEnchantments = new HashSet<>(config.getStringList("enchantment_configuration.soulbound.incompatible_vanilla_enchantments"));
         this.incompatibleCustomEnchantments = new HashSet<>(config.getStringList("enchantment_configuration.soulbound.incompatible_custom_enchantments"));
@@ -48,6 +57,7 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
     }
 
     private final LevelService levelService = new Levels1IfPresentInInventory(this);
+
     @Override
     public LevelService getLevelService(boolean offHand, LivingEntity entity) {
         return levelService;
@@ -81,6 +91,7 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
     }
 
     private final Collection<String> naturallyCompatibleWith;
+
     @Override
     public boolean isNaturallyCompatible(Material material) {
         return MaterialClassType.isMatchingClass(material, naturallyCompatibleWith);
@@ -142,6 +153,7 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
     }
 
     private final ItemStack icon;
+
     @Override
     public ItemStack getIcon() {
         return icon;
@@ -172,20 +184,18 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
         // do nothing
     }
 
-    private final NamespacedKey soulboundItems = new NamespacedKey(EnchantsSquared.getPlugin(), "soulbound_persisted_items");
-
     @Override
     public void onPlayerDeath(PlayerDeathEvent e, int level) {
         if (shouldEnchantmentCancel(level, e.getEntity(), e.getEntity().getLocation())) return;
         List<ItemStack> itemsToSave = new ArrayList<>();
-        for (ItemStack i : new ArrayList<>(e.getDrops())){
+        for (ItemStack i : new ArrayList<>(e.getDrops())) {
             if (ItemUtils.isAirOrNull(i)) continue;
             int soulboundLevel = CustomEnchantManager.getInstance().getEnchantStrength(i, getType());
             if (soulboundLevel <= 0) continue;
             double preservationChance = chanceBase + ((level - 1) * chanceLv);
-            if (Utils.getRandom().nextDouble() <= preservationChance){
+            if (Utils.getRandom().nextDouble() <= preservationChance) {
                 // preserve item
-                if (e.getDrops().contains(i)){
+                if (e.getDrops().contains(i)) {
                     e.getDrops().remove(i);
                     if (singleUse) CustomEnchantManager.getInstance().removeEnchant(i, getType());
                     itemsToSave.add(i);
@@ -193,9 +203,11 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
             }
         }
 
-        if (!itemsToSave.isEmpty()){
+        if (!itemsToSave.isEmpty()) {
             List<String> hashedItems = itemsToSave.stream().map(ItemSerializer::toBase64).collect(Collectors.toList());
-            e.getEntity().getPersistentDataContainer().set(soulboundItems, PersistentDataType.STRING, String.join("<<<item>>>", hashedItems));
+            String playerUUIDString = e.getEntity().getUniqueId().toString();
+            storedItemDataFile.get().set(playerUUIDString, String.join("<<<item>>>", hashedItems));
+            storedItemDataFile.save();
         }
     }
 
@@ -206,14 +218,42 @@ public class Soulbound extends CustomEnchant implements TriggerOnDeathEnchantmen
 
     @Override
     public void onPlayerRespawn(PlayerRespawnEvent e, int level) {
-        String encodedItemString = e.getPlayer().getPersistentDataContainer().get(soulboundItems, PersistentDataType.STRING);
-        if (encodedItemString != null){
+        String playerUUIDString = e.getPlayer().getUniqueId().toString();
+        String encodedItemString = storedItemDataFile.get().getString(playerUUIDString);
+        if (encodedItemString != null && !encodedItemString.equals(" ")) {
             String[] itemHashes = encodedItemString.split("<<<item>>>");
-            for (String i : itemHashes){
+            for (String i : itemHashes) {
                 ItemStack stack = ItemSerializer.itemStackFromBase64(i);
                 ItemUtils.addItem(e.getPlayer(), stack, true);
             }
-            e.getPlayer().getPersistentDataContainer().remove(soulboundItems);
+            storedItemDataFile.get().set(playerUUIDString, " ");
+            storedItemDataFile.save();
         }
     }
+
+    @Override
+    public void onNPCDropItem(NPCDropItemEvent e, int level) {
+        if (level <= 0) {
+            return;
+        }
+        ItemStack item = e.getItem();
+
+        double preservationChance = chanceBase + ((level - 1) * chanceLv);
+        if (Utils.getRandom().nextDouble() <= preservationChance) {
+            // preserve item
+            e.setCancelled(true);
+            if (singleUse) CustomEnchantManager.getInstance().removeEnchant(item, getType());
+            String playerUUIDString = e.getPlayer().getUniqueId().toString();
+
+            String encodedItems = storedItemDataFile.get().getString(playerUUIDString, "");
+            if (encodedItems.equals(" ")) {
+                encodedItems = ItemSerializer.toBase64(item);
+            } else {
+                encodedItems = encodedItems + "<<<item>>>" + ItemSerializer.toBase64(item);
+            }
+            storedItemDataFile.get().set(playerUUIDString, encodedItems);
+            storedItemDataFile.save();
+        }
+    }
+
 }

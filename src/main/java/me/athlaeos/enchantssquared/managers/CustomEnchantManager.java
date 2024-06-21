@@ -28,7 +28,6 @@ import org.bukkit.*;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -37,6 +36,8 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class CustomEnchantManager {
@@ -52,6 +53,10 @@ public class CustomEnchantManager {
     private final boolean enableCosmeticGlint;
     private final boolean isUsingRomanNumerals;
 
+    // Custom SC2
+    private final Map<String, CustomEnchant> displayEnchantmentMap;
+    private final Pattern enchantmentLevelEndingPattern;
+
     public CustomEnchantManager(){
         allEnchants = HashBiMap.create();
         YamlConfiguration config = ConfigManager.getInstance().getConfig("config.yml").get();
@@ -62,6 +67,14 @@ public class CustomEnchantManager {
         this.levelMinimum = config.getInt("level_minimum");
         this.enableCosmeticGlint = config.getBoolean("enable_cosmetic_glint");
         this.isUsingRomanNumerals = config.getBoolean("level_as_roman");
+
+        // SC2
+        displayEnchantmentMap = new HashMap<>();
+        if (isUsingRomanNumerals) {
+            enchantmentLevelEndingPattern = Pattern.compile("^(.*) ([IVXLCDM]+)$"); // Ends in roman numerals
+        } else {
+            enchantmentLevelEndingPattern = Pattern.compile("^(.*) (\\d+)$");
+        }
 
         registerEnchants();
     }
@@ -158,6 +171,13 @@ public class CustomEnchantManager {
         return possibleEnchants;
     }
 
+    /**
+     * Sets the CustomEnchants of an ItemStack and updates the lore to reflect the new Enchantments. Removes all
+     * old Enchantments.
+     * @param item The item to set the Enchants of
+     * @param enchantments A map of Enchantments (CustomEnchant, Integer) to set, where the CustomEnchant
+     *                     is the Enchantment and the Integer is the level.
+     */
     public void setItemEnchants(ItemStack item, Map<CustomEnchant, Integer> enchantments){
         if (ItemUtils.isAirOrNull(item)) return;
         ItemMeta meta = item.getItemMeta();
@@ -185,6 +205,10 @@ public class CustomEnchantManager {
         updateLore(item);
     }
 
+    /**
+     * Updates the Lore of the given ItemStack to reflect the EnchantsSquared CustomEnchantments applied to it.
+     * @param i The ItemStack to update the lore of.
+     */
     public void updateLore(ItemStack i){
         if (ItemUtils.isAirOrNull(i)) return;
         ItemMeta meta = i.getItemMeta();
@@ -196,58 +220,59 @@ public class CustomEnchantManager {
         //if the lore contains an enchantment it's not supposed to have, it is removed
         int firstEnchantIndex = -1; // This will track where in the lore the first enchant is located,
         // so that in case there is custom lore before or after the enchantments they will stay there
-        for (String l : lore){
-            String colorStrippedLine = ChatColor.stripColor(ChatUtils.chat(l));
-            if (allEnchants.values().stream().map(c -> ChatColor.stripColor(ChatUtils.chat(c.getDisplayEnchantment()))).anyMatch(colorStrippedLine::contains)){
+        for (String l : lore) {
+            boolean lineIsCustomEnchantment = false;
+            // If lore is a custom enchantment
+            if (isCustomEnchantmentLore(l)) {
                 // if this line of lore is a custom enchantment, it is not added and the location is recorded
-                if (firstEnchantIndex == -1) firstEnchantIndex = lore.indexOf(l);
-            } else {
+                if (firstEnchantIndex == -1) {
+                    firstEnchantIndex = lore.indexOf(l);
+                }
+                lineIsCustomEnchantment = true;
+            }
+            if (!lineIsCustomEnchantment) {
                 // if this line of lore is not a custom enchantment, it is kept in the final lore
                 finalLore.add(l);
             }
         }
-        boolean hideEnchantsFlag = meta.hasItemFlag(ItemFlag.HIDE_ENCHANTS);
+        Map<CustomEnchant, Integer> enchantments = getItemsEnchantsFromPDC(i);
 
-        if (!hideEnchantsFlag){
-            Map<CustomEnchant, Integer> enchantments = getItemsEnchantsFromPDC(i);
-
-            if (firstEnchantIndex >= 0){
-                for (CustomEnchant e : enchantments.keySet()){
-                    finalLore.add(firstEnchantIndex, ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
-                            (isUsingRomanNumerals ?
-                                    ChatUtils.toRoman(enchantments.get(e)) :
-                                    enchantments.get(e)) : "")));
-                }
-            } else {
-                for (CustomEnchant e : enchantments.keySet()){
-                    finalLore.add(ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
-                            (isUsingRomanNumerals ?
-                                    ChatUtils.toRoman(enchantments.get(e)) :
-                                    enchantments.get(e)) : "")));
-                }
+        if (firstEnchantIndex >= 0){
+            for (CustomEnchant e : enchantments.keySet()){
+                finalLore.add(firstEnchantIndex, ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
+                        (isUsingRomanNumerals ?
+                                ChatUtils.toRoman(enchantments.get(e)) :
+                                enchantments.get(e)) : "")));
             }
-            // Add cosmetic enchantment glow if the item has enchantments and the glow is enabled, or attempt removal otherwise
-            if (!enchantments.isEmpty() && enableCosmeticGlint){
-                if (meta instanceof EnchantmentStorageMeta){
-                    EnchantmentStorageMeta storageMeta = (EnchantmentStorageMeta) meta;
-                    if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)) storageMeta.addStoredEnchant(CosmeticGlintEnchantment.getEnchantsSquaredGlint(), 1, true);
-                    storageMeta.setLore(finalLore);
-                    i.setItemMeta(storageMeta);
-                    return;
-                } else if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)){
+        } else {
+            for (CustomEnchant e : enchantments.keySet()){
+                finalLore.add(ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
+                        (isUsingRomanNumerals ?
+                                ChatUtils.toRoman(enchantments.get(e)) :
+                                enchantments.get(e)) : "")));
+            }
+        }
+        // Add cosmetic enchantment glow if the item has enchantments and the glow is enabled, or attempt removal otherwise
+        if (!enchantments.isEmpty() && enableCosmeticGlint){
+            if (meta instanceof EnchantmentStorageMeta){
+                EnchantmentStorageMeta storageMeta = (EnchantmentStorageMeta) meta;
+                if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)) storageMeta.addStoredEnchant(CosmeticGlintEnchantment.getEnchantsSquaredGlint(), 1, true);
+                storageMeta.setLore(finalLore);
+                i.setItemMeta(storageMeta);
+                return;
+            } else if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)){
                     i.addUnsafeEnchantment(CosmeticGlintEnchantment.getEnchantsSquaredGlint(), 1);
                 }
-            } else {
-                if (meta instanceof EnchantmentStorageMeta){
-                    EnchantmentStorageMeta storageMeta = (EnchantmentStorageMeta) meta;
-                    if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)) storageMeta.removeStoredEnchant(CosmeticGlintEnchantment.getEnchantsSquaredGlint());
-                    storageMeta.setLore(finalLore);
-                    i.setItemMeta(storageMeta);
-                    return;
-                } else if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)) {
+        } else {
+            if (meta instanceof EnchantmentStorageMeta){
+                EnchantmentStorageMeta storageMeta = (EnchantmentStorageMeta) meta;
+                if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)) storageMeta.removeStoredEnchant(CosmeticGlintEnchantment.getEnchantsSquaredGlint());
+                storageMeta.setLore(finalLore);
+                i.setItemMeta(storageMeta);
+                return;
+            } else if (MinecraftVersion.currentVersionOlderThan(MinecraftVersion.MINECRAFT_1_19)) {
                     i.removeEnchantment(CosmeticGlintEnchantment.getEnchantsSquaredGlint());
                 }
-            }
         }
         meta.setLore(finalLore);
         i.setItemMeta(meta);
@@ -353,6 +378,10 @@ public class CustomEnchantManager {
     private void registerEnchant(CustomEnchant enchant){
         if (enchant.isEnabled()){
             allEnchants.put(enchant.getId(), enchant);
+
+            // SC2
+            displayEnchantmentMap.put(
+                    ChatColor.translateAlternateColorCodes('&', enchant.getDisplayEnchantment()), enchant);
         }
     }
 
@@ -545,7 +574,11 @@ public class CustomEnchantManager {
      */
     public void updateItem(ItemStack i) {
         if (i == null) return;
-        setItemEnchants(i, getItemsEnchantsFromLore(i));
+        Map<CustomEnchant, Integer> newEnchants = getItemsEnchantsFromLore(i);
+        if (newEnchants == null) {
+            return;
+        }
+        setItemEnchants(i, newEnchants);
     }
 
     /**
@@ -561,33 +594,75 @@ public class CustomEnchantManager {
     public Map<CustomEnchant, Integer> getItemsEnchantsFromLore(ItemStack enchantedItem){
         //The map is the custom enchant + its level, if the level is 0 the level is not displayed in the lore
         //and has no real max level. ex: "Flight" rather than "Flight I"
-        Map<CustomEnchant, Integer> itemEnchants = new HashMap<>();
-        if (ItemUtils.isAirOrNull(enchantedItem)) return itemEnchants;
-        if (enchantedItem.getItemMeta() == null) return itemEnchants;
-        if (!enchantedItem.getItemMeta().hasLore()) return itemEnchants;
+        HashMap<CustomEnchant, Integer> enchantments = new HashMap<>();
+        if (enchantedItem == null) return enchantments;
+        if (enchantedItem.getItemMeta() == null) return enchantments;
+        if (!enchantedItem.getItemMeta().hasLore()) return enchantments;
 
-        List<String> itemLore = enchantedItem.getItemMeta().getLore();
+        List<String> itemLoreList = enchantedItem.getItemMeta().getLore();
+        assert itemLoreList != null;
 
-        assert itemLore != null;
-        for (String l : itemLore) {
-            for (CustomEnchant e : getCompatibleEnchants(enchantedItem, GameMode.CREATIVE)){
-                if (l.matches(ChatColor.translateAlternateColorCodes('&', e.getDisplayEnchantment() + ".*"))) { // if the String contains the enchantment name w/o level
-                    Bukkit.getLogger().severe("Match found on Item material " + enchantedItem.getType() + " for enchantment " + e.getDisplayEnchantment());
-                    String[] splitLine = l.split(" ");
-                    if (splitLine.length == 1) { // Assume that the level is one
-                        itemEnchants.put(e, 1);
-                    } else if (isUsingRomanNumerals) { // The enchantment should have a roman numeral number
-                        int level = Utils.translateRomanToLevel(splitLine[splitLine.length - 1]);
-                        itemEnchants.put(e, level);
-                    } else { // The enchantment should have a number level
-                        int level = Integer.parseInt(splitLine[splitLine.length - 1]);
-                        itemEnchants.put(e, level);
-                    }
-                    break;
-                }
-            }
+        for (String lore : itemLoreList) {
+            Map.Entry<CustomEnchant, Integer> enchant = getEnchantmentFromLore(lore);
+            if (enchant == null) continue;
+            enchantments.put(enchant.getKey(), enchant.getValue());
         }
 
-        return itemEnchants;
+        return enchantments;
     }
+
+    /**
+     * Returns true if the lore line represents a CustomEnchantment. Custom SC2 Method.
+     * @param loreLine The line of lore to check
+     * @return True if the lore line does represent the lore of a CustomEnchant.
+     */
+    private boolean isCustomEnchantmentLore(String loreLine) {
+        CustomEnchant loreEnchant = displayEnchantmentMap.get(loreLine); // Assume no level endings.
+        if (loreEnchant != null) {
+            return true;
+        }
+        // If this lore line is a CustomEnchantment, it must have a level ending.
+        Matcher matcher = enchantmentLevelEndingPattern.matcher(loreLine);
+        if (matcher.find()) { // Lore line has an ending.
+            loreEnchant = displayEnchantmentMap.get(matcher.group(1)); // Gets the display name without the level ending
+                if (loreEnchant != null) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
+    /**
+     * Returns the {@link CustomEnchant} represented by this lore line, or null if the lore does not represent an
+     * enchantment. Custom SC2 Method.
+     * @param loreLine The line of lore to get the CustomEnchant from
+     * @return the CustomEnchant represented by this lore line, or null if the lore does not represent an enchantment.
+     */
+    private Map.Entry<CustomEnchant, Integer> getEnchantmentFromLore(String loreLine) {
+        CustomEnchant loreEnchant = displayEnchantmentMap.get(loreLine); // Assume no level endings.
+        if (loreEnchant != null) {
+            return new AbstractMap.SimpleEntry<>(loreEnchant, 1); // Level is 1 because of no ending
+        }
+
+        // If this lore line is a CustomEnchantment, it must have a level ending.
+        Matcher endingMatcher = enchantmentLevelEndingPattern.matcher(loreLine);
+        if (endingMatcher.matches()) { // Level ending does exist, get level from ending.
+            loreEnchant = displayEnchantmentMap.get(endingMatcher.group(1));
+            if (loreEnchant != null) { // This is, in fact, an Enchantment.
+                int level;
+                String loreLevelEnding = endingMatcher.group(2);
+                if (isUsingRomanNumerals) {
+                    assert loreLevelEnding.matches("[IVXCLDM]+");
+                    level = Utils.translateRomanToLevel(loreLevelEnding);
+                } else {
+                    assert loreLevelEnding.matches("\\d+");
+                    level = Integer.parseInt(loreLevelEnding); // Should never throw an exception.
+                }
+                return new AbstractMap.SimpleEntry<>(loreEnchant, level);
+            }
+        }
+        return null;
+    }
+
 }
