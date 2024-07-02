@@ -2,14 +2,12 @@ package me.athlaeos.enchantssquared.utility;
 
 import me.athlaeos.enchantssquared.EnchantsSquared;
 import me.athlaeos.enchantssquared.managers.EntityEquipmentCacheManager;
-import me.athlaeos.valhallammo.item.CustomDurabilityManager;
 import org.bukkit.EntityEffect;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerItemDamageEvent;
-import org.bukkit.event.player.PlayerItemMendEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
@@ -88,10 +86,6 @@ public class ItemUtils {
                 damage = event.getDamage();
             }
 
-            if (EnchantsSquared.isValhallaHooked()) {
-                // if ValhallaMMO is active, it handles custom durability itself
-                if (CustomDurabilityManager.hasCustomDurability(me.athlaeos.valhallammo.utility.ItemUtils.getItemMeta(i))) return false;
-            }
             if (!cancelled){
                 Damageable toolMeta = (Damageable) i.getItemMeta();
                 if (toolMeta == null) return false;

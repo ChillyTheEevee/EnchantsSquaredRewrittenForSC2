@@ -27,6 +27,11 @@
             <id>enginehub</id>
             <url>https://maven.enginehub.org/repo/</url>
         </repository>
+        <!-- SC2 Repositories -->
+        <repository>
+            <id>sirblobman-public</id>
+            <url>https://nexus.sirblobman.xyz/public/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -61,6 +66,13 @@
             <version>2.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/ValhallaTrinkets.jar</systemPath>
+        </dependency>
+        <!-- SC2 Dependencies -->
+        <dependency>
+            <groupId>com.github.sirblobman.combatlogx</groupId>
+            <artifactId>api</artifactId>
+            <version>11.4-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>

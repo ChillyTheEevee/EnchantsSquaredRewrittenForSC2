@@ -32,7 +32,7 @@
     <build>
         <defaultGoal>clean package</defaultGoal>
         <directory>../target</directory>
-        <finalName>EnchantsSquared_${revision}</finalName>
+        <finalName>EnchantsSquaredForSC2_${revision}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

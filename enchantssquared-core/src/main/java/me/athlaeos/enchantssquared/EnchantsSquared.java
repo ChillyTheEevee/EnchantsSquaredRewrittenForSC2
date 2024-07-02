@@ -7,7 +7,6 @@ import me.athlaeos.enchantssquared.domain.MinecraftVersion;
 import me.athlaeos.enchantssquared.domain.Version;
 import me.athlaeos.enchantssquared.enchantments.CustomEnchant;
 import me.athlaeos.enchantssquared.hooks.WorldGuardHook;
-import me.athlaeos.enchantssquared.hooks.valhallammo.ValhallaHook;
 import me.athlaeos.enchantssquared.listeners.*;
 import me.athlaeos.enchantssquared.listeners.shadowcraft_listeners.NPCDropItemListener;
 import me.athlaeos.enchantssquared.listeners.shadowcraft_listeners.PlayerJoinListener;
@@ -31,7 +30,6 @@ import java.util.Arrays;
 public final class EnchantsSquared extends JavaPlugin {
     private static EnchantsSquared plugin = null;
     private static boolean trinketsHooked = false;
-    private static boolean valhallaHooked = false;
     private static boolean worldGuardHooked = false;
     private static boolean jobsHooked = false;
     private static NMS nms = null;
@@ -66,12 +64,6 @@ public final class EnchantsSquared extends JavaPlugin {
 
         saveAndUpdateConfig("config.yml");
 
-        valhallaHooked = hasPlugin("ValhallaMMO");
-        if (valhallaHooked){
-            this.getLogger().info("ValhallaMMO hooked! Adding a bunch of cool stuff.");
-            saveConfig("config_valhallammo.yml");
-            CustomEnchantManager.getInstance().registerValhallaEnchantments();
-        }
         worldGuardHooked = hasPlugin("WorldGuard");
         if (worldGuardHooked){
             WorldGuardHook.getHook().registerFlags();
@@ -147,7 +139,6 @@ public final class EnchantsSquared extends JavaPlugin {
             enchant.onPluginEnable();
         }
         RegularIntervalEnchantmentClockManager.startClock();
-        if (valhallaHooked) ValhallaHook.registerValhallaEnchantments();
     }
 
     public static NMS getNms() {
@@ -186,10 +177,6 @@ public final class EnchantsSquared extends JavaPlugin {
 
     public static EnchantsSquared getPlugin(){
         return plugin;
-    }
-
-    public static boolean isValhallaHooked() {
-        return valhallaHooked;
     }
 
     public static boolean isTrinketsHooked() {

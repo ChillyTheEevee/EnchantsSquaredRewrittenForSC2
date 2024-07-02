@@ -9,18 +9,22 @@ import me.athlaeos.enchantssquared.domain.MaterialClassType;
 import me.athlaeos.enchantssquared.domain.MinecraftVersion;
 import me.athlaeos.enchantssquared.enchantments.CustomEnchant;
 import me.athlaeos.enchantssquared.enchantments.on_attack.*;
-import me.athlaeos.enchantssquared.enchantments.on_attacked.*;
+import me.athlaeos.enchantssquared.enchantments.on_attacked.Shielding;
+import me.athlaeos.enchantssquared.enchantments.on_attacked.TradeoffBerserk;
 import me.athlaeos.enchantssquared.enchantments.on_block_break.*;
-import me.athlaeos.enchantssquared.enchantments.on_damaged.*;
+import me.athlaeos.enchantssquared.enchantments.on_damaged.DamageReduction;
+import me.athlaeos.enchantssquared.enchantments.on_damaged.GroundStomper;
 import me.athlaeos.enchantssquared.enchantments.on_death.*;
-import me.athlaeos.enchantssquared.enchantments.on_fishing.*;
-import me.athlaeos.enchantssquared.enchantments.on_heal.*;
-import me.athlaeos.enchantssquared.enchantments.on_interact.*;
-import me.athlaeos.enchantssquared.enchantments.on_item_damage.*;
-import me.athlaeos.enchantssquared.enchantments.on_potion_effect.*;
+import me.athlaeos.enchantssquared.enchantments.on_fishing.Grappling;
+import me.athlaeos.enchantssquared.enchantments.on_heal.Vitality;
+import me.athlaeos.enchantssquared.enchantments.on_interact.AutoReplant;
+import me.athlaeos.enchantssquared.enchantments.on_interact.PlaceTorch;
+import me.athlaeos.enchantssquared.enchantments.on_interact.Shockwave;
+import me.athlaeos.enchantssquared.enchantments.on_item_damage.CurseBrittle;
+import me.athlaeos.enchantssquared.enchantments.on_potion_effect.IncreasePotionPotency;
+import me.athlaeos.enchantssquared.enchantments.on_potion_effect.SplashPotionBlock;
 import me.athlaeos.enchantssquared.enchantments.on_shoot.RapidShot;
 import me.athlaeos.enchantssquared.enchantments.regular_interval.*;
-import me.athlaeos.enchantssquared.hooks.valhallammo.*;
 import me.athlaeos.enchantssquared.utility.ChatUtils;
 import me.athlaeos.enchantssquared.utility.ItemUtils;
 import me.athlaeos.enchantssquared.utility.Utils;
@@ -31,7 +35,6 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -236,20 +239,19 @@ public class CustomEnchantManager {
         }
         Map<CustomEnchant, Integer> enchantments = getItemsEnchantsFromPDC(i);
 
-            if (firstEnchantIndex >= 0){
-                for (CustomEnchant e : enchantments.keySet()){
-                    finalLore.add(firstEnchantIndex, ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
-                            (isUsingRomanNumerals ?
-                                    ChatUtils.toRoman(enchantments.get(e)) :
-                                    enchantments.get(e)) : "")));
-                }
-            } else {
-                for (CustomEnchant e : enchantments.keySet()){
-                    finalLore.add(ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
-                            (isUsingRomanNumerals ?
-                                    ChatUtils.toRoman(enchantments.get(e)) :
-                                    enchantments.get(e)) : "")));
-                }
+        if (firstEnchantIndex >= 0){
+            for (CustomEnchant e : enchantments.keySet()){
+                finalLore.add(firstEnchantIndex, ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
+                        (isUsingRomanNumerals ?
+                                ChatUtils.toRoman(enchantments.get(e)) :
+                                enchantments.get(e)) : "")));
+            }
+        } else {
+            for (CustomEnchant e : enchantments.keySet()){
+                finalLore.add(ChatUtils.chat(e.getDisplayEnchantment() + (e.getMaxLevel() > 1 ? " " +
+                        (isUsingRomanNumerals ?
+                                ChatUtils.toRoman(enchantments.get(e)) :
+                                enchantments.get(e)) : "")));
             }
         }
         meta.setLore(finalLore);
@@ -360,7 +362,6 @@ public class CustomEnchantManager {
             displayEnchantmentMap.put(
                     ChatColor.translateAlternateColorCodes('&', enchant.getDisplayEnchantment()), enchant);
             // End SC2
-            if (EnchantsSquared.isValhallaHooked()) ValhallaHook.registerEnchantmentModifier(enchant);
         }
     }
 
@@ -509,8 +510,6 @@ public class CustomEnchantManager {
             registerEnchant(new BlockReach(60, "block_reach"));
         }
     }
-
-
 
     public boolean doesItemHaveEnchants(ItemStack item){
         if (ItemUtils.isAirOrNull(item)) return false;
