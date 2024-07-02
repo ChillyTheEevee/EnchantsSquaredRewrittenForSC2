@@ -85,7 +85,6 @@ public class UpdateEnchantmentsCommand implements Command {
         // Also update Item in cursor
         CustomEnchantManager.getInstance().updateItem(player.getItemOnCursor());
 
-        player.sendMessage(ChatColor.GREEN + "Inventory successfully updated!");
         return true;
     }
 }
